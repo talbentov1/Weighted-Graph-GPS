@@ -232,7 +232,7 @@ class GPSLayer(nn.Module):
             #a = torch.sigmoid(self.a_param)
             mag_output = h_out_list[0]
             attn_output = h_out_list[1]
-            h = a_param * mag_output + (1 - a_param) * attn_output
+            h = self.a_param * mag_output + (1 - self.a_param) * attn_output
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # ---------------------
