@@ -231,12 +231,13 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # --- Added code: Gating mechanism based on node features ---
+        # --- Fix: Gating mechanism based on node features ---
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # Use node features to compute gate value
-            a = self.gating_network(h_in1).squeeze(-1)  # Shape: [batch_size, 1]
+            # Ensure gating mechanism matches the number of nodes in mag_output and attn_output
+            num_nodes = h_out_list[0].shape[0]  # Assuming first dimension is num_nodes
+            a = self.gating_network(h_in1[:num_nodes]).squeeze(-1)  # Shape: [num_nodes, 1]
 
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]
@@ -244,7 +245,7 @@ class GPSLayer(nn.Module):
             h = a * mag_output + (1 - a) * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # --- End of added code ---
+        # --- End of fix ---
 
         # Feed Forward block.
         h = h + self._ff_block(h)
