@@ -178,25 +178,13 @@ if __name__ == '__main__':
         torch.save(model.state_dict(), model_path)
         logging.info(f"Model saved to {model_path}")
 
-        # Access and log the value of 'a_param'
-        # Replace 'a_param' with the actual attribute path if nested
-        try:
-            # If 'a_param' is a direct attribute of the model
-            a_param = model.a_param.data.cpu().numpy()
-        except AttributeError:
-            # If 'a_param' is nested, e.g., model.layer.a_param
-            # Modify the path accordingly
-            a_param = None
-            for name, param in model.named_parameters():
-                if 'a_param' in name:
-                    a_param = param.data.cpu().numpy()
-                    break
-            if a_param is None:
-                logging.warning("Parameter 'a_param' not found in the model.")
+        # Access and log the value of 'a'
+        # Replace 'a' with the actual attribute path if nested
+        a = model.a
         
-        if a_param is not None:
-            logging.info(f"Learned value of 'a_param': {a_param}")
-        # --- End: Save the model and log 'a_param' ---
+        if a is not None:
+            logging.info(f"Learned value of 'a': {a}")
+        # --- End: Save the model and log 'a' ---
     # Aggregate results from different seeds
     try:
         agg_runs(cfg.out_dir, cfg.metric_best)

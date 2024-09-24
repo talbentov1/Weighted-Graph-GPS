@@ -155,6 +155,7 @@ class GPSLayer(nn.Module):
         # --- Added code ---
         # Learnable scalar parameter 'a' for weighted sum
         self.a_param = nn.Parameter(torch.tensor(0.0))
+        self.a = 0
         # ------------------
 
     def forward(self, batch):
@@ -229,10 +230,10 @@ class GPSLayer(nn.Module):
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            self.a_param = torch.sigmoid(self.a_param)
+            self.a = torch.sigmoid(self.a_param)
             mag_output = h_out_list[0]
             attn_output = h_out_list[1]
-            h = self.a_param * mag_output + (1 - self.a_param) * attn_output
+            h = self.a * mag_output + (1 - self.a) * attn_output
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # ---------------------
