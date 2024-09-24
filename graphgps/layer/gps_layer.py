@@ -24,6 +24,15 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
+        # --- Added code: Gating network based on node features ---
+        self.gating_network = nn.Sequential(
+            nn.Linear(dim_h, dim_h // 2),  # Node features as input
+            nn.ReLU(),  # Non-linear activation
+            nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
+            nn.Sigmoid()  # Ensures output is between 0 and 1
+        )
+        # ------------------
+
         self.dim_h = dim_h
         self.num_heads = num_heads
         self.attn_dropout = attn_dropout
@@ -152,9 +161,9 @@ class GPSLayer(nn.Module):
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
-        # --- Added code ---
+        # --- Added code --- REMOVED FOR NOW, USING DYNAMIC PARAMETER
         # Learnable scalar parameter 'a' for weighted sum
-        self.a_param = nn.Parameter(torch.tensor(0.0))
+        # self.a_param = nn.Parameter(torch.tensor(0.0))
         # ------------------
 
     def forward(self, batch):
@@ -222,20 +231,20 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # Combine local and global outputs.
-        # h = torch.cat(h_out_list, dim=-1)
-        # h = sum(h_out_list)
-        # --- Modified code ---
+        # --- Added code: Gating mechanism based on node features ---
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            a = torch.sigmoid(self.a_param)
+            # Use node features to compute gate value
+            a = self.gating_network(h_in1).squeeze(-1)  # Shape: [batch_size, 1]
+
+            # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]
             attn_output = h_out_list[1]
-            h = a * mag_output + (1 - a) * attn_output
+            h = a * mag_output + (1 - a) * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # ---------------------
+        # --- End of added code ---
 
         # Feed Forward block.
         h = h + self._ff_block(h)
