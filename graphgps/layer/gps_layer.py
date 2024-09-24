@@ -229,7 +229,7 @@ class GPSLayer(nn.Module):
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            a = torch.sigmoid(self.a_param)
+            #a = torch.sigmoid(self.a_param)
             mag_output = h_out_list[0]
             attn_output = h_out_list[1]
             h = a * mag_output + (1 - a) * attn_output
