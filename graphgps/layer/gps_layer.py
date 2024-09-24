@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np 
 import torch
 import torch.nn as nn
 import torch_geometric.graphgym.register as register
@@ -152,6 +152,11 @@ class GPSLayer(nn.Module):
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
+        # --- Added code ---
+        # Learnable scalar parameter 'a' for weighted sum
+        self.a_param = nn.Parameter(torch.tensor(0.0))
+        # ------------------
+
     def forward(self, batch):
         h = batch.x
         h_in1 = h  # for first residual connection
@@ -219,7 +224,18 @@ class GPSLayer(nn.Module):
 
         # Combine local and global outputs.
         # h = torch.cat(h_out_list, dim=-1)
-        h = sum(h_out_list)
+        # h = sum(h_out_list)
+        # --- Modified code ---
+        if len(h_out_list) == 1:
+            h = h_out_list[0]
+        elif len(h_out_list) == 2:
+            a = torch.sigmoid(self.a_param)
+            mag_output = h_out_list[0]
+            attn_output = h_out_list[1]
+            h = a * mag_output + (1 - a) * attn_output
+        else:
+            raise ValueError("Unexpected number of elements in h_out_list")
+        # ---------------------
 
         # Feed Forward block.
         h = h + self._ff_block(h)
