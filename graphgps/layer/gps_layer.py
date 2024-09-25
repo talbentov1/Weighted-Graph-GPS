@@ -14,7 +14,7 @@ from graphgps.layer.gine_conv_layer import GINEConvESLapPE
 
 
 class GPSLayer(nn.Module):
-    """Local MPNN + full graph attention x-former layer.
+    """Local MPNN + full graph attention x-former layer with cross-attention.
     """
 
     def __init__(self, dim_h,
@@ -24,14 +24,14 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
-        # --- Added code: Gating network based on node features ---
-        self.gating_network = nn.Sequential(
-            nn.Linear(dim_h, dim_h // 2),  # Node features as input
-            nn.ReLU(),  # Non-linear activation
-            nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
-            nn.Sigmoid()  # Ensures output is between 0 and 1
-        )
-        # ------------------
+        # --- Removed the gating network initialization ---
+        # self.gating_network = nn.Sequential(
+        #     nn.Linear(dim_h, dim_h // 2),  # Node features as input
+        #     nn.ReLU(),  # Non-linear activation
+        #     nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
+        #     nn.Sigmoid()  # Ensures output is between 0 and 1
+        # )
+        # -------------------------------------------------
 
         self.dim_h = dim_h
         self.num_heads = num_heads
@@ -138,10 +138,6 @@ class GPSLayer(nn.Module):
         if self.layer_norm:
             self.norm1_local = pygnn.norm.LayerNorm(dim_h)
             self.norm1_attn = pygnn.norm.LayerNorm(dim_h)
-            # self.norm1_local = pygnn.norm.GraphNorm(dim_h)
-            # self.norm1_attn = pygnn.norm.GraphNorm(dim_h)
-            # self.norm1_local = pygnn.norm.InstanceNorm(dim_h)
-            # self.norm1_attn = pygnn.norm.InstanceNorm(dim_h)
         if self.batch_norm:
             self.norm1_local = nn.BatchNorm1d(dim_h)
             self.norm1_attn = nn.BatchNorm1d(dim_h)
@@ -154,17 +150,24 @@ class GPSLayer(nn.Module):
         self.act_fn_ff = self.activation()
         if self.layer_norm:
             self.norm2 = pygnn.norm.LayerNorm(dim_h)
-            # self.norm2 = pygnn.norm.GraphNorm(dim_h)
-            # self.norm2 = pygnn.norm.InstanceNorm(dim_h)
         if self.batch_norm:
             self.norm2 = nn.BatchNorm1d(dim_h)
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
-        # --- Added code --- REMOVED FOR NOW, USING DYNAMIC PARAMETER
-        # Learnable scalar parameter 'a' for weighted sum
-        # self.a_param = nn.Parameter(torch.tensor(0.0))
-        # ------------------
+        # --- Added code: Cross-Attention module ---
+        self.cross_attn = nn.MultiheadAttention(
+            embed_dim=dim_h,
+            num_heads=num_heads,
+            dropout=attn_dropout,
+            batch_first=True
+        )
+        if self.layer_norm:
+            self.norm_cross_attn = nn.LayerNorm(dim_h)
+        if self.batch_norm:
+            self.norm_cross_attn = nn.BatchNorm1d(dim_h)
+        self.dropout_cross_attn = nn.Dropout(dropout)
+        # ------------------------------------------
 
     def forward(self, batch):
         h = batch.x
@@ -231,27 +234,52 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # --- Fix: Gating mechanism based on node features ---
+        # --- Cross-Attention mechanism ---
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # Ensure gating mechanism matches the correct shape
-            # Make sure gating network receives the same dimension as node-level outputs
-            num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
-            a = self.gating_network(h[:num_nodes]).squeeze(-1)  # Squeeze to match shape [num_nodes]
+            h_local = h_out_list[0]
+            h_attn = h_out_list[1]
 
-            # Combine MPNN and Attention outputs using the gate
-            mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
-            attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
+            # Convert to dense batch representations
+            h_local_dense, mask = to_dense_batch(h_local, batch.batch)
+            h_attn_dense, _ = to_dense_batch(h_attn, batch.batch)
 
-            # Broadcast 'a' to match the shape of mag_output and attn_output
-            a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
+            # Apply cross-attention per graph
+            attn_output_list = []
+            batch_size = h_local_dense.size(0)
+            for i in range(batch_size):  # Loop over batch
+                q = h_local_dense[i, mask[i]]  # Shape: [num_nodes_in_graph, dim_h]
+                k = h_attn_dense[i, mask[i]]
+                v = h_attn_dense[i, mask[i]]
 
-            # Now 'a' can be used to weight both outputs
-            h = a * mag_output + (1 - a) * attn_output  # Weighted combination
+                # Reshape q, k, v to [1, num_nodes_in_graph, dim_h] for batch_first=True
+                q = q.unsqueeze(0)
+                k = k.unsqueeze(0)
+                v = v.unsqueeze(0)
+
+                # Apply cross-attention
+                attn_output, _ = self.cross_attn(q, k, v)
+                attn_output = attn_output.squeeze(0)  # Shape: [num_nodes_in_graph, dim_h]
+
+                attn_output_list.append(attn_output)
+
+            # Concatenate outputs back into a single tensor
+            h = torch.cat(attn_output_list, dim=0)  # Shape: [total_num_nodes, dim_h]
+
+            # Residual connection
+            h = h_in1 + h
+
+            # Optional normalization and dropout
+            if self.layer_norm:
+                h = self.norm_cross_attn(h, batch.batch)
+            if self.batch_norm:
+                h = self.norm_cross_attn(h)
+            h = self.dropout_cross_attn(h)
+
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # --- End of fix ---
+        # --- End of Cross-Attention mechanism ---
 
         # Feed Forward block.
         h = h + self._ff_block(h)
