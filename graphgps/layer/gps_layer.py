@@ -26,9 +26,9 @@ class GPSLayer(nn.Module):
 
         # --- Added code: Gating network based on node features ---
         self.gating_network = nn.Sequential(
-            nn.Linear(dim_h, dim_h // 2),  # Node features as input
+            nn.Linear(2 * dim_h, dim_h),  # Node features as input
             nn.ReLU(),  # Non-linear activation
-            nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
+            nn.Linear(dim_h, 1),  # Output gate value (scalar)
             nn.Sigmoid()  # Ensures output is between 0 and 1
         )
         # ------------------
@@ -235,14 +235,13 @@ class GPSLayer(nn.Module):
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # Ensure gating mechanism matches the correct shape
-            # Make sure gating network receives the same dimension as node-level outputs
-            num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
-            a = self.gating_network(h[:num_nodes]).squeeze(-1)  # Squeeze to match shape [num_nodes]
-
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
             attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
+
+            # Ensure gating mechanism matches the correct shape
+            h_concat = torch.cat([mag_output, attn_output], dim=-1)
+            a = self.gating_network(h_concat).squeeze(-1)  # Squeeze to match shape [num_nodes]
 
             # Broadcast 'a' to match the shape of mag_output and attn_output
             a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
