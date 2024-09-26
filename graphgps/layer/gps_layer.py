@@ -14,7 +14,7 @@ from graphgps.layer.gine_conv_layer import GINEConvESLapPE
 
 
 class GPSLayer(nn.Module):
-    """Local MPNN + full graph attention x-former layer with cross-attention.
+    """Local MPNN + global attention x-former layer with optimized cross-attention.
     """
 
     def __init__(self, dim_h,
@@ -24,14 +24,8 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
-        # --- Removed the gating network initialization ---
-        # self.gating_network = nn.Sequential(
-        #     nn.Linear(dim_h, dim_h // 2),  # Node features as input
-        #     nn.ReLU(),  # Non-linear activation
-        #     nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
-        #     nn.Sigmoid()  # Ensures output is between 0 and 1
-        # )
-        # -------------------------------------------------
+        # Removed the gating network initialization
+        # and replaced it with an optimized cross-attention mechanism.
 
         self.dim_h = dim_h
         self.num_heads = num_heads
@@ -72,7 +66,7 @@ class GPSLayer(nn.Module):
             gin_nn = nn.Sequential(Linear_pyg(dim_h, dim_h),
                                    self.activation(),
                                    Linear_pyg(dim_h, dim_h))
-            if self.equivstable_pe:  # Use specialised GINE layer for EquivStableLapPE.
+            if self.equivstable_pe:
                 self.local_model = GINEConvESLapPE(gin_nn)
             else:
                 self.local_model = pygnn.GINEConv(gin_nn)
@@ -82,9 +76,6 @@ class GPSLayer(nn.Module):
                                              heads=num_heads,
                                              edge_dim=dim_h)
         elif local_gnn_type == 'PNA':
-            # Defaults from the paper.
-            # aggregators = ['mean', 'min', 'max', 'std']
-            # scalers = ['identity', 'amplification', 'attenuation']
             aggregators = ['mean', 'max', 'sum']
             scalers = ['identity']
             deg = torch.from_numpy(np.array(pna_degrees))
@@ -113,10 +104,6 @@ class GPSLayer(nn.Module):
         elif global_model_type in ['Transformer', 'BiasedTransformer']:
             self.self_attn = torch.nn.MultiheadAttention(
                 dim_h, num_heads, dropout=self.attn_dropout, batch_first=True)
-            # self.global_model = torch.nn.TransformerEncoderLayer(
-            #     d_model=dim_h, nhead=num_heads,
-            #     dim_feedforward=2048, dropout=0.1, activation=F.relu,
-            #     layer_norm_eps=1e-5, batch_first=True)
         elif global_model_type == 'Performer':
             self.self_attn = SelfAttention(
                 dim=dim_h, heads=num_heads,
@@ -155,7 +142,7 @@ class GPSLayer(nn.Module):
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
-        # --- Added code: Cross-Attention module ---
+        # Cross-Attention module
         self.cross_attn = nn.MultiheadAttention(
             embed_dim=dim_h,
             num_heads=num_heads,
@@ -167,11 +154,10 @@ class GPSLayer(nn.Module):
         if self.batch_norm:
             self.norm_cross_attn = nn.BatchNorm1d(dim_h)
         self.dropout_cross_attn = nn.Dropout(dropout)
-        # ------------------------------------------
 
     def forward(self, batch):
         h = batch.x
-        h_in1 = h  # for first residual connection
+        h_in1 = h  # For residual connection
 
         h_out_list = []
         # Local MPNN with edge attributes.
@@ -234,41 +220,46 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # --- Cross-Attention mechanism ---
+        # Optimized Cross-Attention mechanism
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
             h_local = h_out_list[0]
             h_attn = h_out_list[1]
 
-            # Convert to dense batch representations
+            # Convert to dense batch representations with padding
             h_local_dense, mask = to_dense_batch(h_local, batch.batch)
             h_attn_dense, _ = to_dense_batch(h_attn, batch.batch)
 
-            # Apply cross-attention per graph
-            attn_output_list = []
-            batch_size = h_local_dense.size(0)
-            for i in range(batch_size):  # Loop over batch
-                q = h_local_dense[i, mask[i]]  # Shape: [num_nodes_in_graph, dim_h]
-                k = h_attn_dense[i, mask[i]]
-                v = h_attn_dense[i, mask[i]]
+            # Prepare attention mask
+            # Invert mask: True where data is valid, False where padding
+            attn_mask = ~mask
 
-                # Reshape q, k, v to [1, num_nodes_in_graph, dim_h] for batch_first=True
-                q = q.unsqueeze(0)
-                k = k.unsqueeze(0)
-                v = v.unsqueeze(0)
+            # Reshape to [batch_size, max_num_nodes, dim_h]
+            q = h_local_dense  # Queries from h_local
+            k = h_attn_dense   # Keys from h_attn
+            v = h_attn_dense   # Values from h_attn
 
-                # Apply cross-attention
-                attn_output, _ = self.cross_attn(q, k, v)
-                attn_output = attn_output.squeeze(0)  # Shape: [num_nodes_in_graph, dim_h]
+            # Flatten batch and sequence dimensions for MultiheadAttention
+            batch_size, max_num_nodes, dim_h = q.size()
+            q = q.reshape(batch_size * max_num_nodes, dim_h).unsqueeze(1)
+            k = k.reshape(batch_size * max_num_nodes, dim_h).unsqueeze(1)
+            v = v.reshape(batch_size * max_num_nodes, dim_h).unsqueeze(1)
 
-                attn_output_list.append(attn_output)
+            # Expand attn_mask to match the expected shape
+            attn_mask_expanded = attn_mask.view(batch_size * max_num_nodes)
 
-            # Concatenate outputs back into a single tensor
-            h = torch.cat(attn_output_list, dim=0)  # Shape: [total_num_nodes, dim_h]
+            # Apply cross-attention in a single batch
+            attn_output, _ = self.cross_attn(q, k, v, key_padding_mask=attn_mask_expanded)
+
+            # Reshape back to [batch_size, max_num_nodes, dim_h]
+            attn_output = attn_output.squeeze(1).view(batch_size, max_num_nodes, dim_h)
+
+            # Mask out the padding positions
+            attn_output = attn_output[mask]
 
             # Residual connection
-            h = h_in1 + h
+            h = h_in1 + attn_output
 
             # Optional normalization and dropout
             if self.layer_norm:
@@ -276,10 +267,9 @@ class GPSLayer(nn.Module):
             if self.batch_norm:
                 h = self.norm_cross_attn(h)
             h = self.dropout_cross_attn(h)
-
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # --- End of Cross-Attention mechanism ---
+        # End of optimized Cross-Attention mechanism
 
         # Feed Forward block.
         h = h + self._ff_block(h)
