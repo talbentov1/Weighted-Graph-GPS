@@ -24,13 +24,11 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
-        # --- Added code: Gating network based on node features ---
-        self.gating_network = nn.Sequential(
-            pygnn.GCNConv(dim_h, dim_h // 2),  # Node features as input
-            nn.ReLU(),  # Non-linear activation
-            pygnn.GCNConv(dim_h // 2, 1),  # Output gate value (scalar)
-            nn.Sigmoid()  # Ensures output is between 0 and 1
-        )
+        # --- Updated code: Gating network based on node features ---
+        self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
+        self.gating_relu = nn.ReLU()  # Non-linear activation
+        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 1)  # Second GCNConv layer for scalar output
+        self.gating_sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
         # ------------------
 
         self.dim_h = dim_h
@@ -238,7 +236,11 @@ class GPSLayer(nn.Module):
             # Ensure gating mechanism matches the correct shape
             # Make sure gating network receives the same dimension as node-level outputs
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
-            a = self.gating_network(h[:num_nodes], batch.edge_index).squeeze(-1)  # Squeeze to match shape [num_nodes]
+            # Manually apply the gating network layers
+            gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
+            gating_h = self.gating_relu(gating_h)  # Apply ReLU
+            gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
