@@ -26,7 +26,7 @@ class GPSLayer(nn.Module):
 
         # --- Added code: Gating network based on node features ---
         self.gating_network = nn.Sequential(
-            nn.Linear(dim_h, dim_h // 2),  # Node features as input
+            nn.Linear(dim_h  + dim_h, dim_h // 2),  # Node features as input
             nn.ReLU(),  # Non-linear activation
             nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
             nn.Sigmoid()  # Ensures output is between 0 and 1
@@ -235,21 +235,13 @@ class GPSLayer(nn.Module):
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # Ensure gating mechanism matches the correct shape
-            # Make sure gating network receives the same dimension as node-level outputs
-            num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
-            a = self.gating_network(h[:num_nodes]).squeeze(-1)  # Squeeze to match shape [num_nodes]
-
-            # Combine MPNN and Attention outputs using the gate
-            mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
-            attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
-
-            # Broadcast 'a' to match the shape of mag_output and attn_output
-            a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
-
-            # Now 'a' can be used to weight both outputs
-            print(f"Size of a: {a.size()}")
-            h = a * mag_output + (1 - a) * attn_output  # Weighted combination
+            # Assume edge features are aggregated per node, e.g., mean pooling
+            edge_features = batch.edge_attr
+            edge_agg = edge_features.mean(dim=1)  # Adjust aggregation as needed
+            gating_input = torch.cat([h_in1, edge_agg], dim=-1)
+            a = self.gating_network(gating_input).squeeze(-1)
+            a = a.unsqueeze(-1)
+            h = a * h_out_list[0] + (1 - a) * h_out_list[1]
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # --- End of fix ---
