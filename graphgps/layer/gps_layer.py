@@ -231,51 +231,27 @@ class GPSLayer(nn.Module):
             h_local_dense, mask = to_dense_batch(h_local, batch.batch)
             h_attn_dense, _ = to_dense_batch(h_attn, batch.batch)
 
-            # Prepare attention mask
-            # Invert mask: True where data is valid, False where padding
-            attn_mask = ~mask
+            # Prepare inverted attention mask directly for MultiheadAttention
+            attn_mask = mask.logical_not()
 
-            # Reshape to [batch_size, max_num_nodes, dim_h]
-            q = h_local_dense  # Queries from h_local
-            k = h_attn_dense   # Keys from h_attn
-            v = h_attn_dense   # Values from h_attn
+            # Apply cross-attention
+            attn_output, _ = self.cross_attn(h_local_dense, h_attn_dense, h_attn_dense, key_padding_mask=attn_mask)
 
-            # Flatten batch and sequence dimensions for MultiheadAttention
-            batch_size, max_num_nodes, dim_h = q.size()
-            q = q.reshape(batch_size * max_num_nodes, dim_h).unsqueeze(1)
-            k = k.reshape(batch_size * max_num_nodes, dim_h).unsqueeze(1)
-            v = v.reshape(batch_size * max_num_nodes, dim_h).unsqueeze(1)
+            # Apply residual connection
+            h = h_local_dense + attn_output
 
-            # Expand attn_mask to match the expected shape
-            attn_mask_expanded = attn_mask.view(batch_size * max_num_nodes)
-
-            # Apply cross-attention in a single batch
-            if attn_mask_expanded.dim() == 1:
-                attn_mask_expanded = attn_mask_expanded.unsqueeze(0)  # Shape: [1, seq_len]
-
-            if attn_mask_expanded.shape[0] == 1:
-                attn_mask_expanded = attn_mask_expanded.T  # Transpose to shape [seq_len, 1]
-
-            attn_output, _ = self.cross_attn(q, k, v, key_padding_mask=attn_mask_expanded)
-
-            # Reshape back to [batch_size, max_num_nodes, dim_h]
-            attn_output = attn_output.squeeze(1).view(batch_size, max_num_nodes, dim_h)
-
-            # Mask out the padding positions
-            attn_output = attn_output[mask]
-
-            # Residual connection
-            h = h_local + attn_output
+            # Mask out padding positions
+            h = h[mask]
 
             # Optional normalization and dropout
             if self.layer_norm:
-                h = self.norm_cross_attn(h, batch.batch)
+                h = self.norm_cross_attn(h)
             if self.batch_norm:
                 h = self.norm_cross_attn(h)
             h = self.dropout_cross_attn(h)
+
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # End of optimized Cross-Attention mechanism
 
         # Feed Forward block.
         h = h + self._ff_block(h)
