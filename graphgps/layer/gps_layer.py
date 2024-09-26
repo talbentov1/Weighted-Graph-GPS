@@ -250,7 +250,6 @@ class GPSLayer(nn.Module):
             a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
 
             # Now 'a' can be used to weight both outputs
-            print(f"Size of a: {a.size()}")
             h = a * mag_output + (1 - a) * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
