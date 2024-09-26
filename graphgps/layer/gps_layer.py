@@ -250,6 +250,9 @@ class GPSLayer(nn.Module):
             attn_mask_expanded = attn_mask.view(batch_size * max_num_nodes)
 
             # Apply cross-attention in a single batch
+            if attn_mask_expanded.dim() == 1:
+                attn_mask_expanded = attn_mask_expanded.unsqueeze(0)  # Shape: [1, seq_len]
+
             attn_output, _ = self.cross_attn(q, k, v, key_padding_mask=attn_mask_expanded)
 
             # Reshape back to [batch_size, max_num_nodes, dim_h]
