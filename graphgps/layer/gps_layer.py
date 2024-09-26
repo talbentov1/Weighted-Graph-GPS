@@ -26,9 +26,9 @@ class GPSLayer(nn.Module):
 
         # --- Added code: Gating network based on node features ---
         self.gating_network = nn.Sequential(
-            nn.Linear(dim_h, dim_h // 2),  # Node features as input
+            pygnn.GCNConv(dim_h, dim_h // 2),  # Node features as input
             nn.ReLU(),  # Non-linear activation
-            nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
+            pygnn.GCNConv(dim_h // 2, 1),  # Output gate value (scalar)
             nn.Sigmoid()  # Ensures output is between 0 and 1
         )
         # ------------------
