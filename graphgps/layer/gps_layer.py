@@ -253,6 +253,9 @@ class GPSLayer(nn.Module):
             if attn_mask_expanded.dim() == 1:
                 attn_mask_expanded = attn_mask_expanded.unsqueeze(0)  # Shape: [1, seq_len]
 
+            if attn_mask_expanded.shape[0] == 1:
+                attn_mask_expanded = attn_mask_expanded.T  # Transpose to shape [seq_len, 1]
+
             attn_output, _ = self.cross_attn(q, k, v, key_padding_mask=attn_mask_expanded)
 
             # Reshape back to [batch_size, max_num_nodes, dim_h]
