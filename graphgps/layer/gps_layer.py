@@ -12,6 +12,17 @@ from graphgps.layer.bigbird_layer import SingleBigBirdLayer
 from graphgps.layer.gatedgcn_layer import GatedGCNLayer
 from graphgps.layer.gine_conv_layer import GINEConvESLapPE
 
+class PSigmoid(nn.Module):
+    """Parametric Sigmoid Activation Function."""
+    
+    def __init__(self, init_k=1.0, init_c=0.0):
+        super().__init__()
+        self.k = nn.Parameter(torch.tensor(init_k))
+        self.c = nn.Parameter(torch.tensor(init_c))
+    
+    def forward(self, x):
+        return 1 / (1 + torch.exp(-self.k * (x - self.c)))
+
 
 class GPSLayer(nn.Module):
     """Local MPNN + full graph attention x-former layer.
@@ -23,13 +34,13 @@ class GPSLayer(nn.Module):
                  attn_dropout=0.0, layer_norm=False, batch_norm=True,
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
-
+        
         # --- Added code: Gating network based on node features ---
         self.gating_network = nn.Sequential(
             nn.Linear(dim_h, dim_h // 2),  # Node features as input
             nn.ReLU(),  # Non-linear activation
             nn.Linear(dim_h // 2, 1),  # Output gate value (scalar)
-            nn.Sigmoid()  # Ensures output is between 0 and 1
+            PSigmoid(init_k=1.0, init_c=0.0)  # Ensures output is between 0 and 1
         )
         # ------------------
 
