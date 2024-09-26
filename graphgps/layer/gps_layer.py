@@ -238,6 +238,14 @@ class GPSLayer(nn.Module):
             # Assume edge features are aggregated per node, e.g., mean pooling
             edge_features = batch.edge_attr
             edge_agg = edge_features.mean(dim=1)  # Adjust aggregation as needed
+            print("edge_agg")
+            print(edge_agg)
+            print("h_in1")
+            print(h_in1)
+            print("edge_agg.shape")
+            print(edge_agg.shape)
+            print("h_in1.shape")
+            print(h_in1.shape)
             gating_input = torch.cat([h_in1, edge_agg], dim=-1)
             a = self.gating_network(gating_input).squeeze(-1)
             a = a.unsqueeze(-1)
