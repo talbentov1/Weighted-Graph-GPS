@@ -265,7 +265,7 @@ class GPSLayer(nn.Module):
             attn_output = attn_output[mask]
 
             # Residual connection
-            h = h_local_dense + attn_output
+            h = h_local + attn_output
 
             # Optional normalization and dropout
             if self.layer_norm:
