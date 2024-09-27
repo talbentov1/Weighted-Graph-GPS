@@ -240,15 +240,15 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
-            a = self.gating_sigmoid(gating_h)#.squeeze(-1)  # Apply Sigmoid and squeeze to match shape
-            print(a.shape)
+            a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
+
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
             attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
 
             # Broadcast 'a' to match the shape of mag_output and attn_output
             a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
-
+            print(a.shape)
             # Now 'a' can be used to weight both outputs
             h = a * mag_output + (1 - a) * attn_output  # Weighted combination
         else:
