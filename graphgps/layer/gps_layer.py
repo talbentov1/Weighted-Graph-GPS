@@ -28,7 +28,7 @@ class GPSLayer(nn.Module):
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
         self.gating_conv2 = pygnn.GCNConv(dim_h // 2, dim_h)  # Second GCNConv layer for scalar output
-        self.gating_sigmoid = nn.Sigmoid().T  # Ensures output is between 0 and 1
+        self.gating_sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
         # ------------------
 
         self.dim_h = dim_h
@@ -240,8 +240,8 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
-            a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
-
+            a = self.gating_sigmoid(gating_h)#.squeeze(-1)  # Apply Sigmoid and squeeze to match shape
+            print(a.shape)
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
             attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
