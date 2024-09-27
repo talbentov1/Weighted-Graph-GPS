@@ -248,7 +248,7 @@ class GPSLayer(nn.Module):
 
             # Broadcast 'a' to match the shape of mag_output and attn_output
             a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
-            wandb.log({"gating_output": a})
+            logging.info({"gating_output": a})
             # Now 'a' can be used to weight both outputs
             h = a * mag_output + (1 - a) * attn_output  # Weighted combination
         else:
