@@ -28,7 +28,7 @@ class GPSLayer(nn.Module):
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
         self.gating_conv2 = pygnn.GCNConv(dim_h // 2, dim_h)  # Second GCNConv layer for scalar output
-        self.gating_sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
+        self.gating_sigmoid = nn.Sigmoid().T  # Ensures output is between 0 and 1
         # ------------------
 
         self.dim_h = dim_h
