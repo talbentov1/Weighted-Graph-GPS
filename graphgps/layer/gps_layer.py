@@ -238,7 +238,7 @@ class GPSLayer(nn.Module):
             # Ensure gating mechanism matches the correct shape
             # Make sure gating network receives the same dimension as node-level outputs
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
-            a = self.gating_network(h[:num_nodes]).squeeze(-1)  # Squeeze to match shape [num_nodes]
+            a = self.gating_network(h[:num_nodes].mean(dim=0)).squeeze(-1)  # Squeeze to match shape [num_nodes]
 
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
