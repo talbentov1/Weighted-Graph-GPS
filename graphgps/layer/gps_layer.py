@@ -27,7 +27,7 @@ class GPSLayer(nn.Module):
         # --- Updated code: Gating network based on node features ---
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 1)  # Second GCNConv layer for scalar output
+        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, dim_h)  # Second GCNConv layer for scalar output
         self.gating_sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
         # ------------------
 
@@ -250,7 +250,7 @@ class GPSLayer(nn.Module):
             a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
 
             # Now 'a' can be used to weight both outputs
-            h = a * mag_output + (1 - a) * attn_output  # Weighted combination
+            h = a * mag_output * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # --- End of fix ---
