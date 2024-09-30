@@ -27,8 +27,8 @@ class GPSLayer(nn.Module):
         # --- Updated code: Gating network based on node features ---
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 1)  # Second GCNConv layer for scalar output
-        self.gating_sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
+        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
+        self.gating_softmax = nn.Softmax(dim=2)  # Ensures output is between 0 and 1
         # ------------------
 
         self.dim_h = dim_h
@@ -240,17 +240,18 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
-            a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
-
+            a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
+            print(a)
+            print(a.shape)
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
             attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
 
-            # Broadcast 'a' to match the shape of mag_output and attn_output
-            a = a.unsqueeze(-1)  # Shape: [num_nodes, 1]
+            a_mag = a[:, :, 0].unsqueeze(-1)  # First channel for MPNN output
+            a_attn = a[:, :, 1].unsqueeze(-1)  # Second channel for attention output
 
-            # Now 'a' can be used to weight both outputs
-            h = a * mag_output + (1 - a) * attn_output  # Weighted combination
+            # Scale both outputs using gating values
+            h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # --- End of fix ---
