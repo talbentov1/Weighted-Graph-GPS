@@ -164,7 +164,8 @@ class GPSLayer(nn.Module):
         # self.a_param = nn.Parameter(torch.tensor(0.0))
         # ------------------
 
-    def forward(self, batch, a_prev=None):
+    def forward(self, pair):
+        batch, a_prev = pair
         h = batch.x
         h_in1 = h  # for first residual connection
 
