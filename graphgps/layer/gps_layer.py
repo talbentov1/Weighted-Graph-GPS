@@ -238,12 +238,14 @@ class GPSLayer(nn.Module):
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # If a_prev is None, initialize it to [0.5, 0.5] for equal weighting
-            if a_prev is None:
-                a_prev = torch.ones_like(delta_a) * 0.5
             # Ensure gating mechanism matches the correct shape
             # Make sure gating network receives the same dimension as node-level outputs
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
+
+            # If a_prev is None, initialize it to [0.5, 0.5] for equal weighting
+            if a_prev is None:
+                a_prev = torch.ones_like(h[:num_nodes]) * 0.5
+
             # Manually apply the gating network layers
             input_tensor = torch.cat((h[:num_nodes], a_prev), dim=1)
             gating_h = self.gating_conv1(input_tensor, batch.edge_index)  # First GCNConv
