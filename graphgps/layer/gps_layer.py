@@ -256,7 +256,7 @@ class GPSLayer(nn.Module):
 
             # Compute the final gating value by adding the residual to the previous layer's gating value
             a = a_prev + delta_a  # Previous a + residual
-            a_org = a.copy()
+            a_org = a.detach().clone()
             a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
