@@ -165,9 +165,12 @@ class GPSLayer(nn.Module):
         # ------------------
 
     def forward(self, batch):
-        # Check if the input `pair` is a tuple
         h = batch.x
-        a_prev = batch.a_prev
+        # Check if the 'a_prev' attribute exists in batch
+        if hasattr(batch, 'a_prev'):
+            a_prev = batch.a_prev
+        else:
+            a_prev = None  # Set default value if 'a_prev' does not exist
         h_in1 = h  # for first residual connection
 
         h_out_list = []
