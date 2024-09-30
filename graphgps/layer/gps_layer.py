@@ -256,6 +256,7 @@ class GPSLayer(nn.Module):
 
             # Compute the final gating value by adding the residual to the previous layer's gating value
             a = a_prev + delta_a  # Previous a + residual
+            a_org = a.copy()
             a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
@@ -279,7 +280,7 @@ class GPSLayer(nn.Module):
             h = self.norm2(h)
 
         batch.x = h
-        return batch, a_prev
+        return batch, a_org
 
     def _sa_block(self, x, attn_mask, key_padding_mask):
         """Self-attention block.
