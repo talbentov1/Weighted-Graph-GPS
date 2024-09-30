@@ -165,7 +165,14 @@ class GPSLayer(nn.Module):
         # ------------------
 
     def forward(self, pair):
-        batch, a_prev = pair
+        # Check if the input `pair` is a tuple
+        if isinstance(pair, tuple):
+            # Unpack if it is a tuple
+            batch, a_prev = pair
+        else:
+            # If not a tuple, treat the entire input as `batch` and set `a_prev` to None
+            batch = pair
+            a_prev = None
         h = batch.x
         h_in1 = h  # for first residual connection
 
