@@ -164,7 +164,7 @@ class GPSLayer(nn.Module):
         # self.a_param = nn.Parameter(torch.tensor(0.0))
         # ------------------
 
-    def forward(self, batch):
+    def forward(self, batch, a_prev=None):
         h = batch.x
         h_in1 = h  # for first residual connection
 
@@ -240,6 +240,14 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            delta_a = gating_h  # This is the residual
+
+            # If a_prev is None, initialize it to [0.5, 0.5] for equal weighting
+            if a_prev is None:
+                a_prev = torch.ones_like(delta_a) * 0.5
+
+            # Compute the final gating value by adding the residual to the previous layer's gating value
+            a = a_prev + delta_a  # Previous a + residual
             a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
@@ -263,7 +271,7 @@ class GPSLayer(nn.Module):
             h = self.norm2(h)
 
         batch.x = h
-        return batch
+        return batch, a 
 
     def _sa_block(self, x, attn_mask, key_padding_mask):
         """Self-attention block.
