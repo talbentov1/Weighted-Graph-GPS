@@ -29,6 +29,9 @@ class GPSLayer(nn.Module):
         self.gating_relu = nn.ReLU()  # Non-linear activation
         self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 1)  # Second GCNConv layer for scalar output
         self.gating_sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
+        
+        # Initialize baseline gating value
+        self.a_prev = nn.Parameter(torch.tensor([0.5, 0.5]))  # Static or learnable baseline
         # ------------------
 
         self.dim_h = dim_h
@@ -240,6 +243,10 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            delta_a = gating_h  # This is the residual
+
+            # Compute the final gating value by adding the residual to the baseline
+            a = self.a_prev + delta_a  # Baseline + residual
             a = self.gating_sigmoid(gating_h).squeeze(-1)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
