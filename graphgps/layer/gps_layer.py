@@ -241,8 +241,7 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
-            print(a)
-            print(a.shape)
+
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
             attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
