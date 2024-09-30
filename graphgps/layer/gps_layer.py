@@ -271,7 +271,7 @@ class GPSLayer(nn.Module):
             h = self.norm2(h)
 
         batch.x = h
-        return batch, a 
+        return batch, a_prev
 
     def _sa_block(self, x, attn_mask, key_padding_mask):
         """Self-attention block.
