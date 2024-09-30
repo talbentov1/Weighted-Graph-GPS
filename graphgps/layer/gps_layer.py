@@ -164,16 +164,10 @@ class GPSLayer(nn.Module):
         # self.a_param = nn.Parameter(torch.tensor(0.0))
         # ------------------
 
-    def forward(self, pair):
+    def forward(self, batch):
         # Check if the input `pair` is a tuple
-        if isinstance(pair, tuple):
-            # Unpack if it is a tuple
-            batch, a_prev = pair
-        else:
-            # If not a tuple, treat the entire input as `batch` and set `a_prev` to None
-            batch = pair
-            a_prev = None
         h = batch.x
+        a_prev = batch.a_prev
         h_in1 = h  # for first residual connection
 
         h_out_list = []
@@ -280,7 +274,8 @@ class GPSLayer(nn.Module):
             h = self.norm2(h)
 
         batch.x = h
-        return batch, a_org
+        batch.a_prev = a_org
+        return batch
 
     def _sa_block(self, x, attn_mask, key_padding_mask):
         """Self-attention block.
