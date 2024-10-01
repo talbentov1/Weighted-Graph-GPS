@@ -241,7 +241,7 @@ class GPSLayer(nn.Module):
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
 
             # Broadcast a_prev to have shape [num_nodes, 2]
-            self.a_prev = self.a_prev.expand(num_nodes, -1)  # Expands to [num_nodes, 2]
+            a_prev_expanded = self.a_prev.expand(num_nodes, -1)  # Expands to [num_nodes, 2]
 
 
             # Manually apply the gating network layers
@@ -249,10 +249,10 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
             delta_a = gating_h  # This is the residual
-            print(self.a_prev.shape)
-            print(self.a_prev)
+            print(a_prev_expanded.shape)
+            print(a_prev_expanded)
             # Compute the final gating value by adding the residual to the baseline
-            a = self.a_prev + delta_a  # Baseline + residual
+            a = a_prev_expanded + delta_a  # Baseline + residual
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
