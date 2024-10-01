@@ -166,6 +166,11 @@ class GPSLayer(nn.Module):
 
     def forward(self, batch):
         h = batch.x
+        # Check if the 'a_prev' attribute exists in batch
+        if hasattr(batch, 'a_prev'):
+            a_prev = batch.a_prev
+        else:
+            a_prev = None  # Set default value if 'a_prev' does not exist
         h_in1 = h  # for first residual connection
 
         h_out_list = []
@@ -240,6 +245,15 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            delta_a = gating_h  # This is the residual
+
+            # If a_prev is None, initialize it to [0.5, 0.5] for equal weighting
+            if a_prev is None:
+                a_prev = torch.ones_like(delta_a) * 0.5
+
+            # Compute the final gating value by adding the residual to the previous layer's gating value
+            a = a_prev + delta_a  # Previous a + residual
+            a_org = a.detach().clone()
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
@@ -263,6 +277,7 @@ class GPSLayer(nn.Module):
             h = self.norm2(h)
 
         batch.x = h
+        batch.a_prev = a_org
         return batch
 
     def _sa_block(self, x, attn_mask, key_padding_mask):
