@@ -249,7 +249,7 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
             delta_a = gating_h  # This is the residual
-            print(delta_a.shape)
+            print(self.a_prev.shape)
             print(self.a_prev)
             # Compute the final gating value by adding the residual to the baseline
             a = self.a_prev + delta_a  # Baseline + residual
