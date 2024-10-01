@@ -239,13 +239,18 @@ class GPSLayer(nn.Module):
             # Ensure gating mechanism matches the correct shape
             # Make sure gating network receives the same dimension as node-level outputs
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
+
+            # Broadcast a_prev to have shape [num_nodes, 2]
+            a_prev = self.a_prev_base.expand(num_nodes, -1)  # Expands to [num_nodes, 2]
+
+
             # Manually apply the gating network layers
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
             delta_a = gating_h  # This is the residual
             print(delta_a.shape)
-            print(self.a_prev.shape)
+            print(self.a_prev)
             # Compute the final gating value by adding the residual to the baseline
             a = self.a_prev + delta_a  # Baseline + residual
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
