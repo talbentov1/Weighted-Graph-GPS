@@ -251,7 +251,7 @@ class GPSLayer(nn.Module):
             delta_a = gating_h  # This is the residual
 
             # Compute the final gating value by adding the residual to the baseline
-            a = a_prev_expanded + delta_a  # Baseline + residual
+            a = self.a_prev + delta_a  # Baseline + residual
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
