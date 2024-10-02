@@ -240,8 +240,8 @@ class GPSLayer(nn.Module):
             # Make sure gating network receives the same dimension as node-level outputs
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
 
-            # Broadcast a_prev to have shape [num_nodes, 2]
-            a_prev_expanded = self.a_prev.expand(num_nodes, -1)  # Expands to [num_nodes, 2]
+            # # Broadcast a_prev to have shape [num_nodes, 2]
+            # a_prev_expanded = self.a_prev.expand(num_nodes, -1)  # Expands to [num_nodes, 2]
 
 
             # Manually apply the gating network layers
