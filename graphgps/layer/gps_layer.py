@@ -27,7 +27,13 @@ class GPSLayer(nn.Module):
         # --- Updated code: Gating network based on node features ---
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
+        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, dim_h // 4)  # Second GCNConv layer
+        self.flatten = nn.Flatten()  # Flatten the output of the GCN layers
+        self.gating_mlp = nn.Sequential(
+            nn.Linear(dim_h // 4, 16),  # MLP layer to reduce dimensions
+            nn.ReLU(),
+            nn.Linear(16, 2),  # Final scalar output
+        )
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
         # ------------------
 
@@ -240,6 +246,8 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            gating_h = self.flatten(gating_h)  # Flatten the output to prepare for MLP
+            gating_h = self.gating_mlp(gating_h)  # Apply MLP to produce scalar
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
