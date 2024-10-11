@@ -301,26 +301,39 @@ class GPSLayer(nn.Module):
         elif len(h_out_list) == 2:
             # Apply the gating network
             if self.gating_network is not None:
-                if self.gating_gnn_with_edge_attr:
+                self.gating_network: pygnn.conv.MessagePassing  # Typing hint.
+                if self.local_gnn_type == 'CustomGatedGCN':
+                    es_data = None
                     if self.equivstable_pe:
-                        gating_h = self.gating_network(h,
-                                                       batch.edge_index,
-                                                       batch.edge_attr,
-                                                       batch.pe_EquivStableLapPE)
-                    else:
-                        gating_h = self.gating_network(h,
-                                                       batch.edge_index,
-                                                       batch.edge_attr)
+                        es_data = batch.pe_EquivStableLapPE
+                    gating_network_out = self.gating_network(Batch(batch=batch,
+                                                    x=h,
+                                                    edge_index=batch.edge_index,
+                                                    edge_attr=batch.edge_attr,
+                                                    pe_EquivStableLapPE=es_data))
+                    # GatedGCN does residual connection and dropout internally.
+                    h_gating_network = gating_network_out.x
+                    batch.edge_attr = gating_network_out.edge_attr
                 else:
-                    gating_h = self.gating_network(h, batch.edge_index)
+                    if self.local_gnn_with_edge_attr:
+                        if self.equivstable_pe:
+                            h_gating_network = self.gating_network(h,
+                                                    batch.edge_index,
+                                                    batch.edge_attr,
+                                                    batch.pe_EquivStableLapPE)
+                        else:
+                            h_gating_network = self.gating_network(h,
+                                                    batch.edge_index,
+                                                    batch.edge_attr)
+                    else:
+                        h_gating_network = self.gating_network(h, batch.edge_index)
+                    h_gating_network = self.dropout_local(h_local)
+                    # h_gating_network = h_in1 + h_gating_network  # Residual connection.
 
-                if isinstance(self.gating_network, pygnn.GATConv):
-                    # For GATConv, output shape is [num_nodes, heads * out_channels]
-                    # We need to reshape it to [num_nodes, 2]
-                    gating_h = gating_h.view(-1, 2)
-                elif isinstance(self.gating_network, GatedGCNLayer):
-                    # For GatedGCNLayer, output is in the Batch object
-                    gating_h = gating_h.x
+                if self.layer_norm:
+                    h_gating_network = self.norm1_local(h_gating_network, batch.batch)
+                if self.batch_norm:
+                    h_gating_network = self.norm1_local(h_gating_network)
 
                 a = self.gating_softmax(gating_h)
                 a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
