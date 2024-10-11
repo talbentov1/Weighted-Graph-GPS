@@ -24,20 +24,90 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
-        # --- Updated code: Gating network based on node features ---
-        self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
-        self.gating_relu = nn.ReLU()  # Non-linear activation
-        self.gating_dropout = nn.Dropout(dropout)  # Dropout after ReLU
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
-        self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
+        # --- Updated code: Gating network is a copy of the message passing network ---
+        self.dim_h = dim_h
+        self.equivstable_pe = equivstable_pe
+
+        # Initialize the gating network based on the local GNN type
+        if local_gnn_type == 'None':
+            self.gating_network = None
+            self.gating_gnn_with_edge_attr = False
+
+        elif local_gnn_type == "GCN":
+            self.gating_network = pygnn.GCNConv(dim_h, 2)
+            self.gating_gnn_with_edge_attr = False
+
+        elif local_gnn_type == 'GIN':
+            gin_nn = nn.Sequential(
+                Linear_pyg(dim_h, dim_h),
+                self.activation(),
+                Linear_pyg(dim_h, 2)
+            )
+            self.gating_network = pygnn.GINConv(gin_nn)
+            self.gating_gnn_with_edge_attr = False
+
+        elif local_gnn_type == 'GENConv':
+            self.gating_network = pygnn.GENConv(dim_h, 2)
+            self.gating_gnn_with_edge_attr = True
+
+        elif local_gnn_type == 'GINE':
+            gin_nn = nn.Sequential(
+                Linear_pyg(dim_h, dim_h),
+                self.activation(),
+                Linear_pyg(dim_h, 2)
+            )
+            if self.equivstable_pe:
+                self.gating_network = GINEConvESLapPE(gin_nn)
+            else:
+                self.gating_network = pygnn.GINEConv(gin_nn)
+            self.gating_gnn_with_edge_attr = True
+
+        elif local_gnn_type == 'GAT':
+            self.gating_network = pygnn.GATConv(
+                in_channels=dim_h,
+                out_channels=1,  # Since heads=2, output will be [num_nodes, 1 * heads]
+                heads=2,
+                edge_dim=dim_h
+            )
+            self.gating_gnn_with_edge_attr = True
+
+        elif local_gnn_type == 'PNA':
+            aggregators = ['mean', 'max', 'sum']
+            scalers = ['identity']
+            deg = torch.from_numpy(np.array(pna_degrees))
+            self.gating_network = pygnn.PNAConv(
+                dim_h, 2,
+                aggregators=aggregators,
+                scalers=scalers,
+                deg=deg,
+                edge_dim=min(128, dim_h),
+                towers=1,
+                pre_layers=1,
+                post_layers=1,
+                divide_input=False
+            )
+            self.gating_gnn_with_edge_attr = True
+
+        elif local_gnn_type == 'CustomGatedGCN':
+            self.gating_network = GatedGCNLayer(
+                dim_h, 2,
+                dropout=dropout,
+                residual=True,
+                act=act,
+                equivstable_pe=equivstable_pe
+            )
+            self.gating_gnn_with_edge_attr = True
+
+        else:
+            raise ValueError(f"Unsupported local GNN model: {local_gnn_type}")
+
+        self.gating_softmax = nn.Softmax(dim=1)
         # ------------------
 
-        self.dim_h = dim_h
         self.num_heads = num_heads
         self.attn_dropout = attn_dropout
         self.layer_norm = layer_norm
         self.batch_norm = batch_norm
-        self.equivstable_pe = equivstable_pe
         self.activation = register.act_dict[act]
 
         self.log_attn_weights = log_attn_weights
@@ -160,11 +230,6 @@ class GPSLayer(nn.Module):
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
-        # --- Added code --- REMOVED FOR NOW, USING DYNAMIC PARAMETER
-        # Learnable scalar parameter 'a' for weighted sum
-        # self.a_param = nn.Parameter(torch.tensor(0.0))
-        # ------------------
-
     def forward(self, batch):
         h = batch.x
         h_in1 = h  # for first residual connection
@@ -230,32 +295,45 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # --- Fix: Gating mechanism based on node features ---
+        # --- Updated code: Gating mechanism with the gating network ---
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # Ensure gating mechanism matches the correct shape
-            # Make sure gating network receives the same dimension as node-level outputs
-            num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
-            # Manually apply the gating network layers
-            gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
-            gating_h = self.gating_relu(gating_h)  # Apply ReLU
-            gating_h = self.gating_dropout(gating_h)
-            gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
-            a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
+            # Apply the gating network
+            if self.gating_network is not None:
+                if self.gating_gnn_with_edge_attr:
+                    if self.equivstable_pe:
+                        gating_h = self.gating_network(h,
+                                                       batch.edge_index,
+                                                       batch.edge_attr,
+                                                       batch.pe_EquivStableLapPE)
+                    else:
+                        gating_h = self.gating_network(h,
+                                                       batch.edge_index,
+                                                       batch.edge_attr)
+                else:
+                    gating_h = self.gating_network(h, batch.edge_index)
 
-            # Combine MPNN and Attention outputs using the gate
-            mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
-            attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
+                if isinstance(self.gating_network, pygnn.GATConv):
+                    # For GATConv, output shape is [num_nodes, heads * out_channels]
+                    # We need to reshape it to [num_nodes, 2]
+                    gating_h = gating_h.view(-1, 2)
+                elif isinstance(self.gating_network, GatedGCNLayer):
+                    # For GatedGCNLayer, output is in the Batch object
+                    gating_h = gating_h.x
 
-            a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
-            a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
+                a = self.gating_softmax(gating_h)
+                a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
+                a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
 
-            # Scale both outputs using gating values
-            h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
+                # Scale both outputs using gating values
+                h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
+            else:
+                # If gating network is None, default to averaging
+                h = 0.5 * h_out_list[0] + 0.5 * h_out_list[1]
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # --- End of fix ---
+        # --- End of updated code ---
 
         # Feed Forward block.
         h = h + self._ff_block(h)
