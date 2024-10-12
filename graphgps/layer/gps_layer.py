@@ -103,6 +103,11 @@ class GPSLayer(nn.Module):
             raise ValueError(f"Unsupported local GNN model: {local_gnn_type}")
 
         self.gating_softmax = nn.Softmax(dim=1)
+        # Normalization for MPNN and Self-Attention representations.
+        if self.layer_norm:
+            self.norm1_gating_network = pygnn.norm.LayerNorm(2)
+        if self.batch_norm:
+            self.norm1_gating_network = nn.BatchNorm1d(2)
         # ------------------
 
         self.num_heads = num_heads
@@ -333,9 +338,9 @@ class GPSLayer(nn.Module):
                     # h_gating_network = h_in1 + h_gating_network  # Residual connection.
 
                 if self.layer_norm:
-                    h_gating_network = self.norm1_local(h_gating_network, batch.batch)
+                    h_gating_network = self.norm1_gating_network(h_gating_network, batch.batch)
                 if self.batch_norm:
-                    h_gating_network = self.norm1_local(h_gating_network)
+                    h_gating_network = self.norm1_gating_network(h_gating_network)
 
                 a = self.gating_softmax(gating_h)
                 a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
