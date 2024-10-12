@@ -28,7 +28,8 @@ class GPSLayer(nn.Module):
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
         self.gating_dropout = nn.Dropout(dropout)  # Dropout after ReLU
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
+        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, dim_h // 2)  # First GCNConv layer
+        self.gating_conv3 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
         # ------------------
 
@@ -242,6 +243,9 @@ class GPSLayer(nn.Module):
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_dropout(gating_h)
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            gating_h = self.gating_relu(gating_h)  # Apply ReLU
+            gating_h = self.gating_dropout(gating_h)
+            gating_h = self.gating_conv3(gating_h, batch.edge_index)  # Third GCNConv
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
