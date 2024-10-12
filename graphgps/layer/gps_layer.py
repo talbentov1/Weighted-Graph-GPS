@@ -25,11 +25,10 @@ class GPSLayer(nn.Module):
         super().__init__()
 
         # --- Updated code: Gating network based on node features ---
-        self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
-        self.gating_bn = nn.BatchNorm1d(dim_h // 2)
+        self.gating_conv1 = pygnn.GENConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()
         self.gating_dropout = nn.Dropout(dropout)  # Dropout after ReLU
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
+        self.gating_conv2 = pygnn.GENConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
         # ------------------
 
@@ -239,11 +238,10 @@ class GPSLayer(nn.Module):
             # Make sure gating network receives the same dimension as node-level outputs
             num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
             # Manually apply the gating network layers
-            gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
-            gating_h = self.gating_bn(gating_h)
+            gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index, batch.edge_attr) # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_dropout(gating_h)
-            gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            gating_h = self.gating_conv2(gating_h, batch.edge_index, batch.edge_attr)  # Second GCNConv
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
             # Combine MPNN and Attention outputs using the gate
