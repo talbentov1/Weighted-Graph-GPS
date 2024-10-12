@@ -240,7 +240,7 @@ class GPSLayer(nn.Module):
             # Manually apply the gating network layers
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index, batch.edge_attr) # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
-            gating_h = self.gating_dropout(gating_h)
+            # gating_h = self.gating_dropout(gating_h)
             gating_h = self.gating_conv2(gating_h, batch.edge_index, batch.edge_attr)  # Second GCNConv
             a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
 
