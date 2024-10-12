@@ -103,6 +103,13 @@ class GPSLayer(nn.Module):
                 act=act,
                 equivstable_pe=equivstable_pe
             )
+            self.gating_network_second = GatedGCNLayer(
+                dim_h, dim_h,  # Output dimension changed to dim_h
+                dropout=dropout,
+                residual=True,
+                act=act,
+                equivstable_pe=equivstable_pe
+            )
             self.gating_linear = nn.Linear(dim_h, 2)  # Added linear layer
             self.gating_gnn_with_edge_attr = True
 
@@ -314,6 +321,13 @@ class GPSLayer(nn.Module):
                         es_data = batch.pe_EquivStableLapPE
                     gating_network_out = self.gating_network(Batch(batch=batch,
                                                     x=h,
+                                                    edge_index=batch.edge_index,
+                                                    edge_attr=batch.edge_attr,
+                                                    pe_EquivStableLapPE=es_data))
+                    # GatedGCN does residual connection and dropout internally.
+                    h_gating_network = gating_network_out.x
+                    gating_network_out = self.gating_network_second(Batch(batch=batch,
+                                                    x=h_gating_network,
                                                     edge_index=batch.edge_index,
                                                     edge_attr=batch.edge_attr,
                                                     pe_EquivStableLapPE=es_data))
