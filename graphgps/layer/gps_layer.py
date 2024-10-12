@@ -343,6 +343,11 @@ class GPSLayer(nn.Module):
                     h_gating_network = self.norm1_gating_network(h_gating_network)
 
                 a = self.gating_softmax(h_gating_network)
+
+                # Combine MPNN and Attention outputs using the gate
+                mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
+                attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
+
                 a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
                 a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
 
