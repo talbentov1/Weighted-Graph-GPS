@@ -34,7 +34,7 @@ class GPSLayer(nn.Module):
         self.activation = register.act_dict[act]
 
         self.log_attn_weights = log_attn_weights
-        gating_network_gnn_type = "GCN"
+        self.gating_network_gnn_type = "GCN"
         # Initialize the gating network based on the local GNN type
         if gating_network_gnn_type == 'None':
             self.gating_network = None
@@ -107,7 +107,7 @@ class GPSLayer(nn.Module):
             self.gating_gnn_with_edge_attr = True
 
         else:
-            raise ValueError(f"Unsupported local GNN model: {gating_network_gnn_type}")
+            raise ValueError(f"Unsupported gating GNN model: {gating_network_gnn_type}")
 
         self.gating_softmax = nn.Softmax(dim=1)
         # Normalization for MPNN and Self-Attention representations.
@@ -308,7 +308,7 @@ class GPSLayer(nn.Module):
             # Apply the gating network
             if self.gating_network is not None:
                 self.gating_network: pygnn.conv.MessagePassing  # Typing hint.
-                if self.local_gnn_type == 'CustomGatedGCN':
+                if self.gating_network_gnn_type == 'CustomGatedGCN':
                     es_data = None
                     if self.equivstable_pe:
                         es_data = batch.pe_EquivStableLapPE
@@ -322,7 +322,7 @@ class GPSLayer(nn.Module):
                     h_gating_network = self.gating_linear(h_gating_network)
                     batch.edge_attr = gating_network_out.edge_attr
                 else:
-                    if self.local_gnn_with_edge_attr:
+                    if self.gating_gnn_with_edge_attr:
                         if self.equivstable_pe:
                             h_gating_network = self.gating_network(h,
                                                     batch.edge_index,
