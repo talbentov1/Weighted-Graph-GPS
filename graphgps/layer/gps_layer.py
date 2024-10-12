@@ -27,6 +27,13 @@ class GPSLayer(nn.Module):
         # --- Updated code: Gating network is a copy of the message passing network ---
         self.dim_h = dim_h
         self.equivstable_pe = equivstable_pe
+                self.num_heads = num_heads
+        self.attn_dropout = attn_dropout
+        self.layer_norm = layer_norm
+        self.batch_norm = batch_norm
+        self.activation = register.act_dict[act]
+
+        self.log_attn_weights = log_attn_weights
 
         # Initialize the gating network based on the local GNN type
         if local_gnn_type == 'None':
@@ -110,13 +117,6 @@ class GPSLayer(nn.Module):
             self.norm1_gating_network = nn.BatchNorm1d(2)
         # ------------------
 
-        self.num_heads = num_heads
-        self.attn_dropout = attn_dropout
-        self.layer_norm = layer_norm
-        self.batch_norm = batch_norm
-        self.activation = register.act_dict[act]
-
-        self.log_attn_weights = log_attn_weights
         if log_attn_weights and global_model_type not in ['Transformer',
                                                           'BiasedTransformer']:
             raise NotImplementedError(
