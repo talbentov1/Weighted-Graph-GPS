@@ -342,7 +342,7 @@ class GPSLayer(nn.Module):
                 if self.batch_norm:
                     h_gating_network = self.norm1_gating_network(h_gating_network)
 
-                a = self.gating_softmax(gating_h)
+                a = self.gating_softmax(h_gating_network)
                 a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
                 a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
 
