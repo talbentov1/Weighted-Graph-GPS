@@ -23,7 +23,14 @@ class GPSLayer(nn.Module):
                  attn_dropout=0.0, layer_norm=False, batch_norm=True,
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
-
+        self.dim_h = dim_h
+        self.num_heads = num_heads
+        self.attn_dropout = attn_dropout
+        self.layer_norm = layer_norm
+        self.batch_norm = batch_norm
+        self.equivstable_pe = equivstable_pe
+        self.activation = register.act_dict[act]
+        
         # --- Updated code: Gating network based on node features ---
         gin_nn_1 = nn.Sequential(Linear_pyg(dim_h, dim_h),
                                    self.activation(),
@@ -36,14 +43,6 @@ class GPSLayer(nn.Module):
         self.gating_conv2 = pygnn.GINConv(gin_nn_2)  # Second GCNConv layer for scalar output
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
         # ------------------
-
-        self.dim_h = dim_h
-        self.num_heads = num_heads
-        self.attn_dropout = attn_dropout
-        self.layer_norm = layer_norm
-        self.batch_norm = batch_norm
-        self.equivstable_pe = equivstable_pe
-        self.activation = register.act_dict[act]
 
         self.log_attn_weights = log_attn_weights
         if log_attn_weights and global_model_type not in ['Transformer',
