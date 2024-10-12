@@ -25,9 +25,15 @@ class GPSLayer(nn.Module):
         super().__init__()
 
         # --- Updated code: Gating network based on node features ---
-        self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
+        gin_nn_1 = nn.Sequential(Linear_pyg(dim_h, dim_h),
+                                   self.activation(),
+                                   Linear_pyg(dim_h, dim_h // 2 ))
+        self.gating_conv1 = pygnn.GINConv(gin_nn_1) # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
-        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
+        gin_nn_2 = nn.Sequential(Linear_pyg(dim_h // 2, dim_h // 2),
+                                   self.activation(),
+                                   Linear_pyg(dim_h // 2, 2 ))
+        self.gating_conv2 = pygnn.GINConv(gin_nn_2)  # Second GCNConv layer for scalar output
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
         # ------------------
 
