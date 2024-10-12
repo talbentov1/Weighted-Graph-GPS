@@ -36,15 +36,15 @@ class GPSLayer(nn.Module):
         self.log_attn_weights = log_attn_weights
         self.gating_network_gnn_type = "GCN"
         # Initialize the gating network based on the local GNN type
-        if gating_network_gnn_type == 'None':
+        if self.gating_network_gnn_type == 'None':
             self.gating_network = None
             self.gating_gnn_with_edge_attr = False
 
-        elif gating_network_gnn_type == "GCN":
+        elif self.gating_network_gnn_type == "GCN":
             self.gating_network = pygnn.GCNConv(dim_h, 2)
             self.gating_gnn_with_edge_attr = False
 
-        elif gating_network_gnn_type == 'GIN':
+        elif self.gating_network_gnn_type == 'GIN':
             gin_nn = nn.Sequential(
                 Linear_pyg(dim_h, dim_h),
                 self.activation(),
@@ -53,11 +53,11 @@ class GPSLayer(nn.Module):
             self.gating_network = pygnn.GINConv(gin_nn)
             self.gating_gnn_with_edge_attr = False
 
-        elif gating_network_gnn_type == 'GENConv':
+        elif self.gating_network_gnn_type == 'GENConv':
             self.gating_network = pygnn.GENConv(dim_h, 2)
             self.gating_gnn_with_edge_attr = True
 
-        elif gating_network_gnn_type == 'GINE':
+        elif self.gating_network_gnn_type == 'GINE':
             gin_nn = nn.Sequential(
                 Linear_pyg(dim_h, dim_h),
                 self.activation(),
@@ -69,7 +69,7 @@ class GPSLayer(nn.Module):
                 self.gating_network = pygnn.GINEConv(gin_nn)
             self.gating_gnn_with_edge_attr = True
 
-        elif gating_network_gnn_type == 'GAT':
+        elif self.gating_network_gnn_type == 'GAT':
             self.gating_network = pygnn.GATConv(
                 in_channels=dim_h,
                 out_channels=1,  # Since heads=2, output will be [num_nodes, 1 * heads]
@@ -78,7 +78,7 @@ class GPSLayer(nn.Module):
             )
             self.gating_gnn_with_edge_attr = True
 
-        elif gating_network_gnn_type == 'PNA':
+        elif self.gating_network_gnn_type == 'PNA':
             aggregators = ['mean', 'max', 'sum']
             scalers = ['identity']
             deg = torch.from_numpy(np.array(pna_degrees))
@@ -95,7 +95,7 @@ class GPSLayer(nn.Module):
             )
             self.gating_gnn_with_edge_attr = True
 
-        elif gating_network_gnn_type == 'CustomGatedGCN':
+        elif self.gating_network_gnn_type == 'CustomGatedGCN':
             self.gating_network = GatedGCNLayer(
                 dim_h, dim_h,  # Output dimension changed to dim_h
                 dropout=dropout,
@@ -107,7 +107,7 @@ class GPSLayer(nn.Module):
             self.gating_gnn_with_edge_attr = True
 
         else:
-            raise ValueError(f"Unsupported gating GNN model: {gating_network_gnn_type}")
+            raise ValueError(f"Unsupported gating GNN model: {self.gating_network_gnn_type}")
 
         self.gating_softmax = nn.Softmax(dim=1)
         # Normalization for MPNN and Self-Attention representations.
