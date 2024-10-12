@@ -334,7 +334,7 @@ class GPSLayer(nn.Module):
                                                     batch.edge_attr)
                     else:
                         h_gating_network = self.gating_network(h, batch.edge_index)
-                    h_gating_network = self.dropout_local(h_local)
+                    h_gating_network = self.dropout_local(h_gating_network)
                     # h_gating_network = h_in1 + h_gating_network  # Residual connection.
 
                 if self.layer_norm:
