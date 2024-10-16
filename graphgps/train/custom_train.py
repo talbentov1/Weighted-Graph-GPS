@@ -51,9 +51,26 @@ def train_epoch(logger, loader, model, optimizer, scheduler, batch_accumulation)
 def eval_epoch(logger, loader, model, split='val'):
     model.eval()
     time_start = time.time()
+
+    ### ADDED CODE ###
+    gating_weights_per_graph = []  # List to store results for each graph
+    ##################
+
     for batch in loader:
         batch.split = split
         batch.to(torch.device(cfg.accelerator))
+
+        ### ADDED CODE ###
+        pred, gating_weights = model(batch)  # Capture gating weights
+
+        # Capture the graph index and the gating weights for this batch
+        graph_index = batch.batch.cpu().numpy()  # Assuming this gives the graph index
+        gating_weights_per_graph.append({
+            'graph_index': graph_index,
+            'gating_weights': gating_weights.tolist()  # Convert to list for saving
+        })
+        ##################
+
         if cfg.gnn.head == 'inductive_edge':
             pred, true, extra_stats = model(batch)
         else:
@@ -75,6 +92,14 @@ def eval_epoch(logger, loader, model, split='val'):
                             dataset_name=cfg.dataset.name,
                             **extra_stats)
         time_start = time.time()
+
+        ### ADDED CODE ###
+        # After all batches are processed, save the gating weights to a EXCEL file
+        import pandas as pd
+        df = pd.DataFrame(gating_weights_per_graph)
+        df.to_csv('gating_weights.xlsx', index=False)
+        print("saved weights into xlsx file")
+        ##################
 
 
 @register_train('custom')
