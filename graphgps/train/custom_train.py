@@ -70,7 +70,7 @@ def eval_epoch(logger, loader, model, split='val'):
             'graph_index': graph_index,
             'gating_weights': gating_weights.tolist()  # Convert to list for saving
         })
-        batch.x[:, i] = batch.x[:, i].long()
+        # batch.x[:, i] = batch.x[:, i].long()
         ##################
 
         if cfg.gnn.head == 'inductive_edge':
