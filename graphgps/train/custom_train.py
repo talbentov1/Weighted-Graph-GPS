@@ -97,7 +97,7 @@ def eval_epoch(logger, loader, model, split='val'):
         # After all batches are processed, save the gating weights to a EXCEL file
         import pandas as pd
         df = pd.DataFrame(gating_weights_per_graph)
-        df.to_csv('gating_weights.xlsx', index=False)
+        df.to_excel('gating_weights.xlsx', index=False)
         print("saved weights into xlsx file")
         ##################
 
