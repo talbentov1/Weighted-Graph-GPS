@@ -211,6 +211,32 @@ def custom_train(loggers, loaders, model, optimizer, scheduler):
 
     logging.info('Task done, results saved in %s', cfg.run_dir)
 
+@register_train('inference')
+def inference(loggers, loaders, model, checkpoint_path, optimizer=None, scheduler=None):
+    """
+    Customized pipeline to run inference on the test set.
+
+    Args:
+        loggers: List of loggers.
+        loaders: List of loaders.
+        model: GNN model.
+        checkpoint_path: Path to the checkpoint file to load the model.
+        optimizer: Unused, exists just for API compatibility.
+        scheduler: Unused, exists just for API compatibility.
+    """
+    start_time = time.perf_counter()
+
+    # Load checkpoint
+    checkpoint = torch.load(checkpoint_path, map_location=torch.device(cfg.accelerator))
+    model.load_state_dict(checkpoint['model_state'])
+
+    logging.info(f"Loaded checkpoint from {checkpoint_path}")
+
+    # Run inference on the test set
+    eval_epoch(loggers[-1], loaders[-1], model, split='test')
+
+    logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
+
 
 @register_train('inference-only')
 def inference_only(loggers, loaders, model, optimizer=None, scheduler=None):
