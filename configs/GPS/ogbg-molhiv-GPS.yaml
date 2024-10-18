@@ -63,7 +63,7 @@ optim:
   max_epoch: 2
   scheduler: cosine_with_warmup
   num_warmup_epochs: 5
-checkpoint_path: model.ckpt
+checkpoint_path: model
 #optim:
 #  clip_grad_norm: True
 #  optimizer: adamW
