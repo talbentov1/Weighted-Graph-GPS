@@ -166,6 +166,7 @@ class GPSLayer(nn.Module):
 
     def forward(self, batch):
         h = batch.x
+        split = batch.split
         h_in1 = h  # for first residual connection
 
         h_out_list = []
@@ -251,6 +252,9 @@ class GPSLayer(nn.Module):
 
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
+
+            if(split == "test"):
+                print("is test")
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # --- End of fix ---
