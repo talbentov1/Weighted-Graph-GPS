@@ -29,7 +29,9 @@ class GPSLayer(nn.Module):
         self.gating_relu = nn.ReLU()  # Non-linear activation
         self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
-        self.gating_weights = None  # Initialize gating_weights attribute
+
+        # Register gating_weights as a buffer, not learnable
+        self.register_buffer('gating_weights', None)
         # ------------------
 
         self.dim_h = dim_h
@@ -253,8 +255,8 @@ class GPSLayer(nn.Module):
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
 
-            # Capture gating weights for exporting - should be ndarray with shape of [num_of_nodes,2]
-            self.gating_weights = a.cpu().detach().numpy()
+            # Update the gating weights buffer
+            self.gating_weights = a.cpu().detach()
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
         # --- End of fix ---
