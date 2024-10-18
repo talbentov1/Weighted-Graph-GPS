@@ -31,6 +31,7 @@ train:
   batch_size: 32
   eval_period: 1
   ckpt_period: 100
+  checkpoint_path: model
 model:
   type: GPSModel
   loss_fun: cross_entropy
@@ -63,7 +64,6 @@ optim:
   max_epoch: 2
   scheduler: cosine_with_warmup
   num_warmup_epochs: 5
-checkpoint_path: model
 #optim:
 #  clip_grad_norm: True
 #  optimizer: adamW
