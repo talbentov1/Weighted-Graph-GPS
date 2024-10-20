@@ -11,7 +11,7 @@ from torch_geometric.graphgym.utils.epoch import is_eval_epoch, is_ckpt_epoch
 import pandas as pd
 from graphgps.loss.subtoken_prediction_loss import subtoken_cross_entropy
 from graphgps.utils import cfg_to_dict, flatten_dict, make_wandb_name
-
+import json
 
 def train_epoch(logger, loader, model, optimizer, scheduler, batch_accumulation):
     model.train()
