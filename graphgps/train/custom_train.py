@@ -212,7 +212,7 @@ def custom_train(loggers, loaders, model, optimizer, scheduler):
     logging.info('Task done, results saved in %s', cfg.run_dir)
 
 @register_train('inference')
-def inference(loggers, loaders, model, checkpoint_path, optimizer=None, scheduler=None):
+def inference(loggers, loaders, model, optimizer=None, scheduler=None):
     """
     Customized pipeline to run inference on the test set.
 
@@ -220,23 +220,24 @@ def inference(loggers, loaders, model, checkpoint_path, optimizer=None, schedule
         loggers: List of loggers.
         loaders: List of loaders.
         model: GNN model.
-        checkpoint_path: Path to the checkpoint file to load the model.
         optimizer: Unused, exists just for API compatibility.
         scheduler: Unused, exists just for API compatibility.
     """
-    logging.info(f"Inference completed!")
-    # start_time = time.perf_counter()
+    logging.info("Starting inference...")
+    start_time = time.perf_counter()
 
-    # # Load checkpoint
-    # checkpoint = torch.load(checkpoint_path, map_location=torch.device(cfg.accelerator))
-    # model.load_state_dict(checkpoint['model_state'])
+    # Load checkpoint if path is provided
+    if cfg.train.checkpoint_path:
+        logging.info(f"Loading checkpoint from {cfg.train.checkpoint_path}")
+        checkpoint = torch.load(cfg.train.checkpoint_path, map_location=torch.device(cfg.accelerator))
+        model.load_state_dict(checkpoint['model_state'])
+    else:
+        logging.warning("No checkpoint path provided. Using the model as is.")
 
-    # logging.info(f"Loaded checkpoint from {checkpoint_path}")
+    # Run inference on the test set
+    eval_epoch(loggers[-1], loaders[-1], model, split='test')
 
-    # # Run inference on the test set
-    # eval_epoch(loggers[-1], loaders[-1], model, split='test')
-
-    # logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
+    logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
 
 
 @register_train('inference-only')
