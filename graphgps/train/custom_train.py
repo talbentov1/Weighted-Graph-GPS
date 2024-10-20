@@ -224,18 +224,19 @@ def inference(loggers, loaders, model, checkpoint_path, optimizer=None, schedule
         optimizer: Unused, exists just for API compatibility.
         scheduler: Unused, exists just for API compatibility.
     """
-    start_time = time.perf_counter()
+    logging.info(f"Inference completed!")
+    # start_time = time.perf_counter()
 
-    # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=torch.device(cfg.accelerator))
-    model.load_state_dict(checkpoint['model_state'])
+    # # Load checkpoint
+    # checkpoint = torch.load(checkpoint_path, map_location=torch.device(cfg.accelerator))
+    # model.load_state_dict(checkpoint['model_state'])
 
-    logging.info(f"Loaded checkpoint from {checkpoint_path}")
+    # logging.info(f"Loaded checkpoint from {checkpoint_path}")
 
-    # Run inference on the test set
-    eval_epoch(loggers[-1], loaders[-1], model, split='test')
+    # # Run inference on the test set
+    # eval_epoch(loggers[-1], loaders[-1], model, split='test')
 
-    logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
+    # logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
 
 
 @register_train('inference-only')
