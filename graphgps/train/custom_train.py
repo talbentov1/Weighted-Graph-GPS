@@ -223,21 +223,31 @@ def inference(loggers, loaders, model, optimizer=None, scheduler=None):
         optimizer: Unused, exists just for API compatibility.
         scheduler: Unused, exists just for API compatibility.
     """
+    import os
+
     logging.info("Starting inference...")
     start_time = time.perf_counter()
 
     # Load checkpoint if path is provided
-    if cfg.train.radius :
-        logging.info(f"Loading checkpoint from {cfg.train.radius}")
-        checkpoint = torch.load(cfg.train.radius, map_location=torch.device(cfg.accelerator))
-        model.load_state_dict(checkpoint['model_state'])
+    if cfg.train.radius:
+        if os.path.isfile(cfg.train.radius):
+            logging.info(f"Loading checkpoint from {cfg.train.radius}")
+            checkpoint = torch.load(cfg.train.radius, map_location=torch.device(cfg.accelerator))
+            model.load_state_dict(checkpoint['model_state'])
+        else:
+            logging.warning(f"Checkpoint not found at {cfg.train.radius}. Using the model as is.")
     else:
         logging.warning("No checkpoint path provided. Using the model as is.")
+
+    # Ensure results directory exists to avoid FileNotFoundError
+    results_path = 'results/ogbg-molhiv-GPS/0/val/'
+    os.makedirs(results_path, exist_ok=True)
 
     # Run inference on the test set
     eval_epoch(loggers[-1], loaders[-1], model, split='test')
 
     logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
+
 
 
 @register_train('inference-only')
