@@ -165,8 +165,9 @@ if __name__ == '__main__':
         else:
             train_dict[cfg.train.mode](loggers, loaders, model, optimizer,
                                        scheduler)
-    # Aggregate results from different seeds
-    if not cfg.train.radius == 'model':
+    
+    if not cfg.train.mode == 'inference':
+        # Aggregate results from different seeds
         try:
             agg_runs(cfg.out_dir, cfg.metric_best)
         except Exception as e:
