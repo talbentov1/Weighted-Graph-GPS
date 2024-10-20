@@ -249,7 +249,7 @@ class GPSLayer(nn.Module):
 
             a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
             a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
-            logging.info(f"a_mag: {a_mag}, a_attn: {a_attn}")
+            logging.info(f"a_mag mean: {a_mag.mean()}")
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
