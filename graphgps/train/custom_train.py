@@ -211,6 +211,18 @@ def custom_train(loggers, loaders, model, optimizer, scheduler):
 
     logging.info('Task done, results saved in %s', cfg.run_dir)
 
+
+
+# Load data from the JSON file and export to Parquet
+def export_a_mag_to_parquet(json_file="./a_mag_values.json", parquet_file="./a_mag_values.parquet"):
+    with open(json_file, "r") as f:
+        data = json.load(f)
+
+    df = pd.DataFrame({"a_mag_mean": data})
+    df.to_parquet(parquet_file, index=False)
+    print(f"Exported a_mag values to {parquet_file}")
+
+
 @register_train('inference')
 def inference(loggers, loaders, model, optimizer=None, scheduler=None):
     """
@@ -246,10 +258,8 @@ def inference(loggers, loaders, model, optimizer=None, scheduler=None):
     # Run inference on the test set
     eval_epoch(loggers[-1], loaders[-1], model, split='test')
 
-    filename="./a_mag_values.parquet"
-    df = pd.DataFrame({"a_mag_mean": a_mag_values})
-    df.to_parquet(filename, index=False)
-    print(f"Exported a_mag values to {filename}")
+    # Load data from the JSON file and export to Parquet
+    export_a_mag_to_parquet()
 
     logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
 

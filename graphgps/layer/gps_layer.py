@@ -13,7 +13,7 @@ from graphgps.layer.gatedgcn_layer import GatedGCNLayer
 from graphgps.layer.gine_conv_layer import GINEConvESLapPE
 import logging
 
-a_mag_values = []
+
 
 class GPSLayer(nn.Module):
     """Local MPNN + full graph attention x-former layer.
@@ -232,7 +232,6 @@ class GPSLayer(nn.Module):
             h_out_list.append(h_attn)
 
         # --- Fix: Gating mechanism based on node features ---
-        global a_mag_values
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
@@ -252,7 +251,7 @@ class GPSLayer(nn.Module):
             a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
             a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
             logging.info(f"a_mag mean: {a_mag.mean()}")
-            a_mag_values.append(a_mag.mean().item())
+            append_a_mag_to_file(a_mag.mean().item())
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
@@ -300,3 +299,17 @@ class GPSLayer(nn.Module):
             f'global_model_type={self.global_model_type}, ' \
             f'heads={self.num_heads}'
         return s
+
+
+
+def append_a_mag_to_file(value, filename="./a_mag_values.json"):
+    try:
+        with open(filename, "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = []  # Initialize empty list if file doesn't exist
+
+    data.append(value)
+
+    with open(filename, "w") as f:
+        json.dump(data, f)
