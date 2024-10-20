@@ -227,8 +227,8 @@ def inference(loggers, loaders, model, optimizer=None, scheduler=None):
     start_time = time.perf_counter()
 
     # Load checkpoint if path is provided
-    if cfg.train.checkpoint_path:
-        logging.info(f"Loading checkpoint from {cfg.train.checkpoint_path}")
+    if cfg.train.ckpt_clean :
+        logging.info(f"Loading checkpoint from {cfg.train.ckpt_clean}")
         checkpoint = torch.load(cfg.train.checkpoint_path, map_location=torch.device(cfg.accelerator))
         model.load_state_dict(checkpoint['model_state'])
     else:

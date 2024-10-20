@@ -31,7 +31,7 @@ train:
   batch_size: 32
   eval_period: 1
   ckpt_period: 100
-  checkpoint_path: model
+  ckpt_clean: model
 model:
   type: GPSModel
   loss_fun: cross_entropy
