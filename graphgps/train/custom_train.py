@@ -8,7 +8,7 @@ from torch_geometric.graphgym.config import cfg
 from torch_geometric.graphgym.loss import compute_loss
 from torch_geometric.graphgym.register import register_train
 from torch_geometric.graphgym.utils.epoch import is_eval_epoch, is_ckpt_epoch
-
+import pandas as pd
 from graphgps.loss.subtoken_prediction_loss import subtoken_cross_entropy
 from graphgps.utils import cfg_to_dict, flatten_dict, make_wandb_name
 
@@ -245,6 +245,11 @@ def inference(loggers, loaders, model, optimizer=None, scheduler=None):
 
     # Run inference on the test set
     eval_epoch(loggers[-1], loaders[-1], model, split='test')
+
+    filename="./a_mag_values.parquet"
+    df = pd.DataFrame({"a_mag_mean": a_mag_values})
+    df.to_parquet(filename, index=False)
+    print(f"Exported a_mag values to {filename}")
 
     logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
 

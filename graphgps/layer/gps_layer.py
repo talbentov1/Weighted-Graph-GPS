@@ -13,6 +13,7 @@ from graphgps.layer.gatedgcn_layer import GatedGCNLayer
 from graphgps.layer.gine_conv_layer import GINEConvESLapPE
 import logging
 
+a_mag_values = []
 
 class GPSLayer(nn.Module):
     """Local MPNN + full graph attention x-former layer.
@@ -231,6 +232,7 @@ class GPSLayer(nn.Module):
             h_out_list.append(h_attn)
 
         # --- Fix: Gating mechanism based on node features ---
+        global a_mag_values
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
@@ -250,6 +252,7 @@ class GPSLayer(nn.Module):
             a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
             a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
             logging.info(f"a_mag mean: {a_mag.mean()}")
+            a_mag_values.append(a_mag.mean().item())
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
