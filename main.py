@@ -125,6 +125,8 @@ if __name__ == '__main__':
     torch.set_num_threads(cfg.num_threads)
     # Repeat for multiple experiment runs
     for run_id, seed, split_index in zip(*run_loop_settings()):
+        print(f"seed {seed}")
+        print(f"run_id {run_id}")
         # Set configurations for each run
         custom_set_run_dir(cfg, run_id)
         set_printing()
