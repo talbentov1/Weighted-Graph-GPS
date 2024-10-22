@@ -24,12 +24,10 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
-        # --- Updated code: Gating network based on node features ---
         self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
         self.gating_relu = nn.ReLU()  # Non-linear activation
         self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
         self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
-        # ------------------
 
         self.dim_h = dim_h
         self.num_heads = num_heads
@@ -159,11 +157,6 @@ class GPSLayer(nn.Module):
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
-        # --- Added code --- REMOVED FOR NOW, USING DYNAMIC PARAMETER
-        # Learnable scalar parameter 'a' for weighted sum
-        # self.a_param = nn.Parameter(torch.tensor(0.0))
-        # ------------------
-
     def forward(self, batch):
         h = batch.x
         h_in1 = h  # for first residual connection
@@ -229,18 +222,16 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # --- Fix: Gating mechanism based on node features ---
+        # Gating mechanism based on node features
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            # Ensure gating mechanism matches the correct shape
-            # Make sure gating network receives the same dimension as node-level outputs
-            num_nodes = h_out_list[0].shape[0]  # This should correspond to the number of nodes
+            num_nodes = h_out_list[0].shape[0]
             # Manually apply the gating network layers
             gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
             gating_h = self.gating_relu(gating_h)  # Apply ReLU
             gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
-            a = self.gating_softmax(gating_h)  # Apply Sigmoid and squeeze to match shape
+            a = self.gating_softmax(gating_h)  # Apply Softmax
 
             # Combine MPNN and Attention outputs using the gate
             mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
@@ -253,7 +244,6 @@ class GPSLayer(nn.Module):
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # --- End of fix ---
 
         # Feed Forward block.
         h = h + self._ff_block(h)
