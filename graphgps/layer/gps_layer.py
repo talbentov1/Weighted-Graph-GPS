@@ -24,6 +24,11 @@ class GPSLayer(nn.Module):
                  bigbird_cfg=None, log_attn_weights=False):
         super().__init__()
 
+        self.gating_conv1 = pygnn.GCNConv(dim_h, dim_h // 2)  # First GCNConv layer
+        self.gating_relu = nn.ReLU()  # Non-linear activation
+        self.gating_conv2 = pygnn.GCNConv(dim_h // 2, 2)  # Second GCNConv layer for scalar output
+        self.gating_softmax = nn.Softmax(dim=1)  # Ensures output is between 0 and 1
+
         self.dim_h = dim_h
         self.num_heads = num_heads
         self.attn_dropout = attn_dropout
@@ -152,11 +157,6 @@ class GPSLayer(nn.Module):
         self.ff_dropout1 = nn.Dropout(dropout)
         self.ff_dropout2 = nn.Dropout(dropout)
 
-        # --- Added code ---
-        # Learnable scalar parameter 'a' for weighted sum
-        self.a_param = nn.Parameter(torch.tensor(0.0))
-        # ------------------
-
     def forward(self, batch):
         h = batch.x
         h_in1 = h  # for first residual connection
@@ -222,20 +222,28 @@ class GPSLayer(nn.Module):
                 h_attn = self.norm1_attn(h_attn)
             h_out_list.append(h_attn)
 
-        # Combine local and global outputs.
-        # h = torch.cat(h_out_list, dim=-1)
-        # h = sum(h_out_list)
-        # --- Modified code ---
+        # Gating mechanism based on node features
         if len(h_out_list) == 1:
             h = h_out_list[0]
         elif len(h_out_list) == 2:
-            a = torch.sigmoid(self.a_param)
-            mag_output = h_out_list[0]
-            attn_output = h_out_list[1]
-            h = a * mag_output + (1 - a) * attn_output
+            num_nodes = h_out_list[0].shape[0]
+            # Manually apply the gating network layers
+            gating_h = self.gating_conv1(h[:num_nodes], batch.edge_index)  # First GCNConv
+            gating_h = self.gating_relu(gating_h)  # Apply ReLU
+            gating_h = self.gating_conv2(gating_h, batch.edge_index)  # Second GCNConv
+            a = self.gating_softmax(gating_h)  # Apply Softmax
+
+            # Combine MPNN and Attention outputs using the gate
+            mag_output = h_out_list[0]  # Shape: [num_nodes, feature_dim]
+            attn_output = h_out_list[1]  # Shape: [num_nodes, feature_dim]
+
+            a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
+            a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
+
+            # Scale both outputs using gating values
+            h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
             raise ValueError("Unexpected number of elements in h_out_list")
-        # ---------------------
 
         # Feed Forward block.
         h = h + self._ff_block(h)
