@@ -223,6 +223,15 @@ def export_a_mag_to_parquet(json_file="./a_mag_values.json", parquet_file="./a_m
     print(f"Exported a_mag values to {parquet_file}")
 
 
+# Load data from the JSON file and export to Parquet
+def export_a_mag_to_parquet_std(json_file="./a_mag_std.json", parquet_file="./a_mag_std_values.parquet"):
+    with open(json_file, "r") as f:
+        data = json.load(f)
+
+    df = pd.DataFrame({"a_mag_std": data})
+    df.to_parquet(parquet_file, index=False)
+    print(f"Exported a_mag values to {parquet_file}")
+
 @register_train('inference')
 def inference(loggers, loaders, model, optimizer=None, scheduler=None):
     """
@@ -263,6 +272,46 @@ def inference(loggers, loaders, model, optimizer=None, scheduler=None):
 
     logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
 
+
+@register_train('inference_std')
+def inference_std(loggers, loaders, model, optimizer=None, scheduler=None):
+    """
+    Customized pipeline to run inference on the test set.
+
+    Args:
+        loggers: List of loggers.
+        loaders: List of loaders.
+        model: GNN model.
+        optimizer: Unused, exists just for API compatibility.
+        scheduler: Unused, exists just for API compatibility.
+    """
+    import os
+
+    logging.info("Starting inference...")
+    start_time = time.perf_counter()
+
+    # Load checkpoint if path is provided
+    if cfg.train.radius:
+        if os.path.isfile(cfg.train.radius):
+            logging.info(f"Loading checkpoint from {cfg.train.radius}")
+            checkpoint = torch.load(cfg.train.radius, map_location=torch.device(cfg.accelerator))
+            model.load_state_dict(checkpoint['model_state'])
+        else:
+            logging.warning(f"Checkpoint not found at {cfg.train.radius}. Using the model as is.")
+    else:
+        logging.warning("No checkpoint path provided. Using the model as is.")
+
+    # Ensure results directory exists to avoid FileNotFoundError
+    results_path = 'results/ogbg-molhiv-GPS/0/val/'
+    os.makedirs(results_path, exist_ok=True)
+
+    # Run inference on the test set
+    eval_epoch(loggers[-1], loaders[-1], model, split='test')
+
+    # Load data from the JSON file and export to Parquet
+    export_a_mag_to_parquet_std()
+
+    logging.info(f"Inference completed! Took {time.perf_counter() - start_time:.2f}s")
 
 
 @register_train('inference-only')

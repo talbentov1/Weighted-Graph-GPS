@@ -253,6 +253,7 @@ class GPSLayer(nn.Module):
             a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
             logging.info(f"a_mag mean: {a_mag.mean()}")
             append_a_mag_to_file(a_mag.mean().item())
+            append_a_mag_to_file(a_mag.std().item(), "./a_mag_std.json")
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
