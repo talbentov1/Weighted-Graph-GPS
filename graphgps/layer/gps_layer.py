@@ -41,6 +41,7 @@ class GPSLayer(nn.Module):
         self.batch_norm = batch_norm
         self.equivstable_pe = equivstable_pe
         self.activation = register.act_dict[act]
+        self.layer_number = layer_number
 
         self.log_attn_weights = log_attn_weights
         if log_attn_weights and global_model_type not in ['Transformer',
