@@ -81,7 +81,7 @@ class GPSModel(torch.nn.Module):
         except:
             raise ValueError(f"Unexpected layer type: {cfg.gt.layer_type}")
         layers = []
-        for _ in range(cfg.gt.layers):
+        for layer_number in range(cfg.gt.layers):
             layers.append(GPSLayer(
                 dim_h=cfg.gt.dim_hidden,
                 local_gnn_type=local_gnn_type,
@@ -96,6 +96,7 @@ class GPSModel(torch.nn.Module):
                 batch_norm=cfg.gt.batch_norm,
                 bigbird_cfg=cfg.gt.bigbird,
                 log_attn_weights=cfg.train.mode == 'log-attn-weights',
+                layer_number=layer_number
             ))
         self.layers = torch.nn.Sequential(*layers)
 

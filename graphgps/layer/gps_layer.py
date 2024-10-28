@@ -24,7 +24,7 @@ class GPSLayer(nn.Module):
                  local_gnn_type, global_model_type, num_heads, act='relu',
                  pna_degrees=None, equivstable_pe=False, dropout=0.0,
                  attn_dropout=0.0, layer_norm=False, batch_norm=True,
-                 bigbird_cfg=None, log_attn_weights=False):
+                 bigbird_cfg=None, log_attn_weights=False, layer_number=0):
         super().__init__()
 
         # --- Updated code: Gating network based on node features ---
@@ -252,8 +252,8 @@ class GPSLayer(nn.Module):
             a_mag = a[:, 0].unsqueeze(-1)  # First channel for MPNN output
             a_attn = a[:, 1].unsqueeze(-1)  # Second channel for attention output
             logging.info(f"a_mag mean: {a_mag.mean()}")
-            append_a_mag_to_file(a_mag.mean().item())
-            append_a_mag_to_file(a_mag.std().item(), "./a_mag_std.json")
+            append_a_mag_to_file(a_mag.mean().item(), self.layer_number)
+            append_a_mag_std_to_file(a_mag.std().item(), "./a_mag_std.json")
             # Scale both outputs using gating values
             h = a_mag * mag_output + a_attn * attn_output  # Weighted combination
         else:
@@ -304,7 +304,20 @@ class GPSLayer(nn.Module):
 
 
 
-def append_a_mag_to_file(value, filename="./a_mag_values.json"):
+def append_a_mag_to_file(value, layer_number, filename="./a_mag_values.json"):
+    try:
+        with open(filename, "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = []  # Initialize empty list if file doesn't exist
+
+    data.append({"layer_number": layer_number, "a_mag_mean": value})
+
+    with open(filename, "w") as f:
+        json.dump(data, f)
+
+
+def append_a_mag_std_to_file(value, filename="./a_mag_values.json"):
     try:
         with open(filename, "r") as f:
             data = json.load(f)

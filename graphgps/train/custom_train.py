@@ -215,10 +215,19 @@ def custom_train(loggers, loaders, model, optimizer, scheduler):
 
 # Load data from the JSON file and export to Parquet
 def export_a_mag_to_parquet(json_file="./a_mag_values.json", parquet_file="./a_mag_values.parquet"):
+    """
+    Exports the JSON data to a Parquet file.
+
+    :param json_file: The input JSON file containing the data.
+    :param parquet_file: The output Parquet file path.
+    """
     with open(json_file, "r") as f:
         data = json.load(f)
 
-    df = pd.DataFrame({"a_mag_mean": data})
+    # Create a DataFrame from the list of dictionaries
+    df = pd.DataFrame(data)
+
+    # Export to Parquet
     df.to_parquet(parquet_file, index=False)
     print(f"Exported a_mag values to {parquet_file}")
 
