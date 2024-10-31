@@ -10,7 +10,7 @@ layer to dataset-specific needs, achieving optimal performance remains challengi
 our analysis reveals valuable insights into graph structure, highlighting how different datasets benefit from varying emphases on local or global
 information. This adaptive architecture offers a promising direction for future research in modular and scalable graph neural networks.
 
-![WGPS layer](omertalmi5/WeightedGraphGPS/WGPS-layer.pdf)
+![WGPS layer](WGPS-layer.pdf)
 
 You can find our experiment notebook, named `official_experiment.ipynb`, in this repository.
 
