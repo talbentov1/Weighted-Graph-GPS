@@ -12,6 +12,6 @@ information. This adaptive architecture offers a promising direction for future 
 
 ![WGPS layer](WGPS-layer.png)
 
-You can find our experiment notebook, named `official_experiment.ipynb`, in this repository.
+You can find our experiment notebook, named `official_experiment.ipynb`, and our written paper about the project 'Weighted Graph GPS - our paper.pdf' in this repository.
 
 Based on GraphGPS: General Powerful Scalable Graph Transformers
